@@ -1,0 +1,45 @@
+using System;
+using System.IO;
+using System.Text.RegularExpressions;
+
+class Program
+{
+    static void Main()
+    {
+        string projectPath = @"C:\Path\To\Your\Project"; // Change this to your project path
+        string[] files = Directory.GetFiles(projectPath, "*.cs", SearchOption.AllDirectories);
+
+        Console.WriteLine("Scanning for database interactions...\n");
+
+        foreach (string file in files)
+        {
+            string content = File.ReadAllText(file);
+
+            // Find Entity Framework DbSet<> mappings
+            MatchCollection dbSets = Regex.Matches(content, @"DbSet<(\w+)>");
+
+            foreach (Match match in dbSets)
+            {
+                Console.WriteLine($"[Table] {match.Groups[1].Value}");
+            }
+
+            // Find SQL queries (SELECT, INSERT, UPDATE, DELETE)
+            MatchCollection sqlQueries = Regex.Matches(content, @"\""(SELECT|INSERT|UPDATE|DELETE).*?\""", RegexOptions.IgnoreCase);
+
+            foreach (Match match in sqlQueries)
+            {
+                Console.WriteLine($"[SQL Query] {match.Value}");
+            }
+
+            // Find stored procedure calls (EXEC or ExecuteSqlRaw)
+            MatchCollection storedProcs = Regex.Matches(content, @"(EXEC\s+\w+|ExecuteSqlRaw\(\s*\""(.*?)\""\))", RegexOptions.IgnoreCase);
+
+            foreach (Match match in storedProcs)
+            {
+                Console.WriteLine($"[Stored Procedure] {match.Value}");
+            }
+        }
+
+        Console.WriteLine("\nScanning complete.");
+    }
+}
