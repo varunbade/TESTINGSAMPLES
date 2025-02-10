@@ -1,0 +1,79 @@
+using System;
+using System.IO;
+using System.Text.RegularExpressions;
+
+class Program
+{
+    static void Main()
+    {
+        // Set the root project directory to scan
+        string projectPath = @"C:\AllProjects\P93_Automation\P93AutomationFileProcessing";
+
+        // Output file to store extracted database artifacts
+        string outputFile = Path.Combine(projectPath, "DatabaseArtifacts.txt");
+
+        Console.WriteLine("Scanning for database artifacts...\n");
+
+        // Get all C# files in the project directory
+        string[] files = Directory.GetFiles(projectPath, "*.cs", SearchOption.AllDirectories);
+
+        using (StreamWriter writer = new StreamWriter(outputFile))
+        {
+            writer.WriteLine("Database Artifacts Found:\n");
+
+            foreach (string file in files)
+            {
+                string content = File.ReadAllText(file);
+
+                // Find Entity Framework DbSet<T> mappings (Tables)
+                MatchCollection dbSets = Regex.Matches(content, @"DbSet<\s*(\w+)\s*>", RegexOptions.IgnoreCase);
+                foreach (Match match in dbSets)
+                {
+                    string tableName = match.Groups[1].Value;
+                    writer.WriteLine($"[Table] {tableName}");
+                    Console.WriteLine($"[Table] {tableName}");
+                }
+
+                // Find all SQL Queries (SELECT, INSERT, UPDATE, DELETE) including multi-line queries
+                MatchCollection sqlQueries = Regex.Matches(content, @"(@?\$?\""(SELECT|INSERT|UPDATE|DELETE).*?\"")", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+                foreach (Match match in sqlQueries)
+                {
+                    writer.WriteLine($"[SQL Query] {match.Value}");
+                    Console.WriteLine($"[SQL Query] {match.Value}");
+                }
+
+                // Find SQL Server Stored Procedures (EXEC, ExecuteSqlRaw)
+                MatchCollection sqlStoredProcs = Regex.Matches(content, 
+                    @"\bEXEC\s+(\w+)|ExecuteSqlRaw\(\s*\""(.*?)\""\)", RegexOptions.IgnoreCase);
+                foreach (Match match in sqlStoredProcs)
+                {
+                    string storedProcName = match.Groups[1].Value;
+                    writer.WriteLine($"[SQL Stored Procedure] {storedProcName}");
+                    Console.WriteLine($"[SQL Stored Procedure] {storedProcName}");
+                }
+
+                // Find Oracle Stored Procedures (CALL, BEGIN...END)
+                MatchCollection oracleStoredProcs = Regex.Matches(content, 
+                    @"\bCALL\s+(\w+)|BEGIN\s+(\w+)\s*\(?.*?\)?\s*;?\s*END;", RegexOptions.IgnoreCase);
+                foreach (Match match in oracleStoredProcs)
+                {
+                    string storedProcName = match.Groups[1].Value;
+                    writer.WriteLine($"[Oracle Stored Procedure] {storedProcName}");
+                    Console.WriteLine($"[Oracle Stored Procedure] {storedProcName}");
+                }
+
+                // Find Oracle ADO.NET Command Calls (OracleCommand with CommandType.StoredProcedure)
+                MatchCollection oracleCommands = Regex.Matches(content, 
+                    @"new\s+OracleCommand\(\s*\""(.*?)\"".*?CommandType\.StoredProcedure", RegexOptions.IgnoreCase);
+                foreach (Match match in oracleCommands)
+                {
+                    string storedProcName = match.Groups[1].Value;
+                    writer.WriteLine($"[Oracle ADO.NET Stored Procedure] {storedProcName}");
+                    Console.WriteLine($"[Oracle ADO.NET Stored Procedure] {storedProcName}");
+                }
+            }
+        }
+
+        Console.WriteLine($"\nScanning complete. Results saved to {outputFile}");
+    }
+}
